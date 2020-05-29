@@ -13,11 +13,9 @@ import sys
 import traceback
 
 
-requiredcolumns = ["barcode","subgroupTitle", "subgroupID", "recordgroupTitle", "recordgroupID", "locationCopies", "subjectTopicsFAST","Ignore", "seriesTitle", "seriesID", "subSeriesTitle", "subSeriesID", "fileTitle", "itemTitle", "subTitle", "place","dateText","dateStart","dateEnd","dateBulkStart","dateBulkEnd","dateQualifier", "shelfLocator1", "shelfLocator1ID", "shelfLocator2", "shelfLocator2ID", "shelfLocator3","shelfLocator3ID","typeOfResource","genreAAT","genreLCSH","genreLocal","genreRBGENR","extentQuantity","extentSize","extentSpeed","form","noteScope","noteHistorical","noteHistoricalClassYear","noteGeneral","language","noteAccession","identifierBDR","publisher","namePersonCreatorLC","namePersonCreatorLocal","nameCorpCreatorLC","nameCorpCreatorLocal","namePersonOtherLC","namePersonOtherLocal","subjectNamesLC","subjectNamesLocal","subjectCorpLC","subjectCorpLocal","subjectTopicsLC","subjectTopicsLocal","subjectGeoLC","subjectTemporalLC","subjectTitleLC","collection","dateTextParent","callNumber","repository","findingAid","digitalOrigin","rightsStatementText","rightsStatementURI", "useAndReproduction", "coordinates", "scale", "projection", "containerSummary"]
 langcode = {}
 langcodeopp = {}
 scriptcode = {}
-langissue = False
 
 def getSplitCharacter(string):
     if ";" in string:
@@ -25,25 +23,14 @@ def getSplitCharacter(string):
     else:
         return("|")
 
-def messageToUser(messagetitle, message):
-    print("", file=sys.stderr)
-    print(messagetitle, file=sys.stderr)
-    print(message, file=sys.stderr)
-    try:
-        raw_input("Press Enter to continue . . .")
-    except SyntaxError:
-        print("Syntax Error", file=sys.stderr)
-    except TypeError:
-        print("Type Error", file=sys.stderr)
-
-def multilinefield(refdict, parentelement, originalfieldname, eadfieldname):
+def multiLineField(refdict, parentelement, originalfieldname, eadfieldname):
     newelement = etree.SubElement(parentelement, eadfieldname)
     lines = refdict.get(originalfieldname, '').splitlines()
     for line in lines:
         pelement = etree.SubElement(newelement, "p")
-        pelement.text = ' '.join(line.split())
+        pelement.text = xmltext(line)
 
-def repeatingsubjectfield(parentelement, refdict, originalfieldname, eadfieldname, eadattributes):
+def repeatingSubjectField(parentelement, refdict, originalfieldname, eadfieldname, eadattributes):
     splitcharacter = ";"
 
     for namesindex, addedentry in enumerate(refdict.get(originalfieldname, '').split(splitcharacter)):
@@ -62,7 +49,7 @@ def repeatingsubjectfield(parentelement, refdict, originalfieldname, eadfieldnam
             customAttributes["authfilenumber"] = xmltext(uri[0])
 
         namecontrolaccesselement = etree.SubElement(parentelement, eadfieldname, customAttributes)
-        namecontrolaccesselement.text = ' '.join(addedentry.replace("|d", "").replace("|e", "").split())
+        namecontrolaccesselement.text = xmltext(addedentry)
 
 def repeatingNameField(parentElement, elementName, rowString, assignedRole, source):
     for name in rowString.split(';'):
@@ -168,21 +155,6 @@ def isAllLower(s):
     else:
         return True
 
-
-
-def let_user_pick(message, options):
-    print("", file=sys.stderr)
-    print(message, file=sys.stderr)
-    for idx, element in enumerate(options):
-        print("{}) {}".format(idx+1,element), file=sys.stderr)
-    i = input("Enter number: ")
-    try:
-        if 0 < int(i) <= len(options):
-            return options[i-1]
-    except:
-        pass
-    return None
-
 def XLSDictReader(file, sheetname):
         book    = xlrd.open_workbook(file)
         sheet   = book.sheet_by_name(sheetname)
@@ -272,12 +244,10 @@ def getSheetNames(chosenfile):
     sheetnames = excel.sheet_names()
     return(sheetnames)
 
-CACHEDIR = "/home/codyross/eadmaker/cache/"
-#CACHEDIR = os.getcwd() + "/"
-HOMEDIR = "/home/codyross/eadmaker/"
-#HOMEDIR = os.getcwd() + "/"
-
-print("._. EAD Maker ._.", file=sys.stderr)
+#CACHEDIR = "/home/codyross/eadmaker/cache/"
+CACHEDIR = os.getcwd() + "/cache"
+#HOMEDIR = "/home/codyross/eadmaker/"
+HOMEDIR = os.getcwd() + "/"
 
 def processExceltoEAD(chosenfile, chosensheet, id):
 
@@ -291,29 +261,10 @@ def processExceltoEAD(chosenfile, chosensheet, id):
 
     csvdata = {}
     cldata = {}
-    langissue = False
 
     excel = xlrd.open_workbook(chosenfile)
     sheetnames = excel.sheet_names()
     selectedsheet = excel.sheet_by_name(chosensheet)
-    columnsinsheet = [str(cell.value) for cell in selectedsheet.row(0)]
-
-    missingcolumns = []
-    for column in requiredcolumns:
-        if (column in columnsinsheet) == False:
-            #print("Missing spreadsheet column: " + column + '\n')
-            missingcolumns.append(column)
-
-    if len(missingcolumns) != 0:
-        print("*Missing Columns Detected*" + '\n', file=sys.stderr)
-        print("The columns below are missing from your spreadsheet. The script will continue without them." + '\n\n', file=sys.stderr)
-
-        for column in missingcolumns:
-            print("   " + column + '\n', file=sys.stderr)
-
-
-    print('\n\n', file=sys.stderr)
-
 
     csvdata = XLSDictReader(chosenfile, chosensheet)
 
@@ -321,47 +272,17 @@ def processExceltoEAD(chosenfile, chosensheet, id):
         copyworkbook(HOMEDIR + "Collection-Level Data.xlsx", chosenfile)
         excel = xlrd.open_workbook(chosenfile)
 
-        #if originalfile != '':
-        #    copyworkbook(os.getcwd() + "/data/Collection-Level Data.xlsx", originalfile)
-
-        #print("")
-        print("*Collection-Level Data Missing*\n", file=sys.stderr)
-        print("Collection-level data is missing from your spreadsheet. A sheet titled Collection-Level Data has been automatically added. Enter data in this sheet to add collection-level data to your EAD file.\n", file=sys.stderr)
-
-
-        print('\n\n', file=sys.stderr)
-
-
-        #try:
-        #    raw_input("Press Enter to continue . . . ")
-        #except SyntaxError:
-        #    raw_input = 0
-        #except TypeError:
-        #    raw_input = 0
-
     cldata = XLSDictReaderVertical(chosenfile, "Collection-Level Data")
     chosenfile = chosensheet
 
     #Create the output directory and save the path to the output_path variable.
     now = datetime.datetime.now()
 
-    #try:
-   #      os.mkdir(output_path + '/'+ chosenfile + " " + now.strftime("%m-%d-%Y %H %M " + str(now.second)))
-   # except OSError:
-   #      print ("")
-   # else:
-#    print ("")
-   #    output_path = output_path + '/'+ chosenfile + " " + now.strftime("%m-%d-%Y %H %M " + str(now.second))
-
-    #Create the error CSV.
-    #errorfile = open(output_path + '/Error Report ' + now.strftime("%m-%d-%Y %H %M " + str(now.second)) + '.csv', mode='wb')
-    #errorcsvwriter = csv.writer(errorfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-    #errorcsvwriter.writerow(['Spreadsheet Row', 'BDR Number', 'Column Name', 'Column Contents', 'Potential Issue'])
-
     #Set up namespaces and attributes for XML.
     attr_qname = etree.QName("http://www.w3.org/2001/XMLSchema-instance", "schemaLocation")
     ns_map = {"ead":"urn:isbn:1-931666-22-9", "ns2" : "http://www.w3.org/1999/xlink", "xsi" : "http://www.w3.org/2001/XMLSchema-instance"}
     ns_map2 = {"ns2":"http://www.w3.org/1999/xlink"}
+
     #Create top elements for EAD.
     eadtop = etree.Element("ead", {attr_qname: "urn:isbn:1-931666-22-9 http://www.loc.gov/ead/ead.xsd", "audience":"external","relatedencoding":"MARC21", "xmlns":"urn:isbn:1-931666-22-9"}, nsmap=ns_map)
     eadheaderelement = etree.SubElement(eadtop, "eadheader", {"audience":"external","countryencoding":"iso3166-1","dateencoding":"iso8601","scriptencoding":"iso15924", "relatedencoding":"MARC21", "repositoryencoding":"iso15511","langencoding":"iso639-2b"})
@@ -411,12 +332,10 @@ def processExceltoEAD(chosenfile, chosensheet, id):
              langusagelangelement.text =  xmltext(language)
 
              if scriptcode == "N/A":
-                 langissue = True
+                 print("Language issue")
         else:
              langusagelangelement = etree.SubElement(collangmaterial, "language", {"langcode":"***", "scriptcode":"***"})
              langusagelangelement.text =  xmltext(language)
-
-             langissue = True
 
     colphysdescelement = etree.SubElement(coldidelement, "physdesc")
     colextentelement = etree.SubElement(colphysdescelement, "extent").text = xmltext(cldata.get("sizeExtent", ''))
@@ -448,7 +367,7 @@ def processExceltoEAD(chosenfile, chosensheet, id):
     bioghistlines = cldata.get("bioHistNote", '').splitlines()
     for line in bioghistlines:
         pelement = etree.SubElement(colbioghistelement, "p")
-        pelement.text = ' '.join(line.split())
+        pelement.text = xmltext(line)
 
     #descriptive descgrp
     coldescgrpdescriptiveelement = etree.SubElement(archdescelement, "descgrp", {"type":"descriptive"})
@@ -461,25 +380,25 @@ def processExceltoEAD(chosenfile, chosensheet, id):
     colscopelines = cldata.get("scopeNote", '').splitlines()
     for line in colscopelines:
         pelement = etree.SubElement(colscopenoteelement, "p")
-        pelement.text = ' '.join(line.split())
+        pelement.text = xmltext(line)
 
     coluserestrictelement = etree.SubElement(coldescgrpdescriptiveelement, "userestrict")
     coluserestrictlines = cldata.get("conditionsUse", '').splitlines()
     for line in coluserestrictlines:
         pelement = etree.SubElement(coluserestrictelement, "p")
-        pelement.text = ' '.join(line.split())
+        pelement.text = xmltext(line)
 
     colaccessrestrictelement = etree.SubElement(coldescgrpdescriptiveelement, "accessrestrict")
     colaccessrestrictlines = cldata.get("conditionsAccess", '').splitlines()
     for line in colaccessrestrictlines:
         pelement = etree.SubElement(colaccessrestrictelement, "p")
-        pelement.text = ' '.join(line.split())
+        pelement.text = xmltext(line)
 
     colpreferciteelement = etree.SubElement(coldescgrpdescriptiveelement, "prefercite")
     colprefercitelines = cldata.get("preferredCitation", '').splitlines()
     for line in colprefercitelines:
         pelement = etree.SubElement(colpreferciteelement, "p")
-        pelement.text = ' '.join(line.split())
+        pelement.text = xmltext(line)
 
     colarrangementelement = etree.SubElement(coldescgrpdescriptiveelement, "arrangement")
     arrangementnotepelement = etree.SubElement(colarrangementelement, "p")
@@ -501,22 +420,22 @@ def processExceltoEAD(chosenfile, chosensheet, id):
     colacqinfoadminlines = cldata.get("acquisitionInformation", '').splitlines()
     for line in colacqinfoadminlines:
         pelement = etree.SubElement(colacqinfoadminelement, "p")
-        pelement.text = ' '.join(line.split())
+        pelement.text = xmltext(line)
 
     colprocessinfoadminelement = etree.SubElement(coldescgrpadministrativeelement, "processinfo")
     colprocessinfoadminlines = cldata.get("processingInformation", '').splitlines()
     for line in colprocessinfoadminlines:
         pelement = etree.SubElement(colprocessinfoadminelement, "p")
-        pelement.text = ' '.join(line.split())
+        pelement.text = xmltext(line)
 
     colcustodhistadminelement = etree.SubElement(coldescgrpadministrativeelement, "custodhist")
     colcustodhistadminlines = cldata.get("custodialHistory", '').splitlines()
     for line in colcustodhistadminlines:
         pelement = etree.SubElement(colcustodhistadminelement, "p")
-        pelement.text = ' '.join(line.split())
+        pelement.text = xmltext(line)
 
-    multilinefield(cldata, coldescgrpadministrativeelement, 'accruals', 'accruals')
-    multilinefield(cldata, coldescgrpadministrativeelement, 'appraisal', 'appraisal')
+    multiLineField(cldata, coldescgrpadministrativeelement, 'accruals', 'accruals')
+    multiLineField(cldata, coldescgrpadministrativeelement, 'appraisal', 'appraisal')
 
     #descgrp additional
     coldescgrpadditionalelement = etree.SubElement(archdescelement, "descgrp", {"type":"additional"})
@@ -525,12 +444,12 @@ def processExceltoEAD(chosenfile, chosensheet, id):
         coldescgrpadditionalheaderelement = etree.SubElement(coldescgrpadditionalelement, "head")
         coldescgrpadditionalheaderelement.text = "Additional information"
 
-    multilinefield(cldata, coldescgrpadditionalelement, 'generalNote', 'odd')
-    multilinefield(cldata, coldescgrpadditionalelement, 'relatedMaterials', 'relatedmaterial')
-    multilinefield(cldata, coldescgrpadditionalelement, 'separatedMaterials', 'separatedmaterial')
-    multilinefield(cldata, coldescgrpadditionalelement, 'locationOriginals', 'originalsloc')
-    multilinefield(cldata, coldescgrpadditionalelement, 'otherFindingAids', 'otherfindaid')
-    multilinefield(cldata, coldescgrpadditionalelement, 'otherFormats', 'altformavail')
+    multiLineField(cldata, coldescgrpadditionalelement, 'generalNote', 'odd')
+    multiLineField(cldata, coldescgrpadditionalelement, 'relatedMaterials', 'relatedmaterial')
+    multiLineField(cldata, coldescgrpadditionalelement, 'separatedMaterials', 'separatedmaterial')
+    multiLineField(cldata, coldescgrpadditionalelement, 'locationOriginals', 'originalsloc')
+    multiLineField(cldata, coldescgrpadditionalelement, 'otherFindingAids', 'otherfindaid')
+    multiLineField(cldata, coldescgrpadditionalelement, 'otherFormats', 'altformavail')
 
     #descgrp cataloging
     coldescgrpcatalogingelement = etree.SubElement(archdescelement, "descgrp", {"type":"cataloging"})
@@ -540,56 +459,56 @@ def processExceltoEAD(chosenfile, chosensheet, id):
     if cldata.get("addedEntryPersonLC", '') != '' or cldata.get("addedEntryPersonLocal", '') != '' or cldata.get("addedEntryCorporateLC", '') != '' or cldata.get("addedEntryCorporateLocal", '') != '':
     	coldescgrpcontrolaccessnamesheadelement.text = "Names"
 
-    repeatingsubjectfield(coldescgrpnamescontrolaccesselement, cldata, 'addedEntryPersonLC', 'persname', {'source':'lcnaf'})
-    repeatingsubjectfield(coldescgrpnamescontrolaccesselement, cldata, 'addedEntryPersonLocal', 'persname', {'source':'local'})
+    repeatingSubjectField(coldescgrpnamescontrolaccesselement, cldata, 'addedEntryPersonLC', 'persname', {'source':'lcnaf'})
+    repeatingSubjectField(coldescgrpnamescontrolaccesselement, cldata, 'addedEntryPersonLocal', 'persname', {'source':'local'})
 
-    repeatingsubjectfield(coldescgrpnamescontrolaccesselement, cldata, 'addedEntryCorporateLC', 'corpname', {'source':'lcnaf'})
-    repeatingsubjectfield(coldescgrpnamescontrolaccesselement, cldata, 'addedEntryCorporateLocal', 'corpname', {'source':'local'})
+    repeatingSubjectField(coldescgrpnamescontrolaccesselement, cldata, 'addedEntryCorporateLC', 'corpname', {'source':'lcnaf'})
+    repeatingSubjectField(coldescgrpnamescontrolaccesselement, cldata, 'addedEntryCorporateLocal', 'corpname', {'source':'local'})
 
     coldescgrpsubjectscontrolaccesselement = etree.SubElement(coldescgrpcatalogingelement, "controlaccess")
     coldescgrpcontrolaccesssubjectheadelement = etree.SubElement(coldescgrpsubjectscontrolaccesselement, "head")
     if cldata.get("addedEntrySubjectLC", '') != '' or cldata.get("addedEntrySubjectLocal", '') != '' or cldata.get("addedEntrySubjectFAST", '') != '' or cldata.get("addedEntryGeographicLC", '') != '' or cldata.get("addedEntryGeographicLocal", '') != '':
     	coldescgrpcontrolaccesssubjectheadelement.text = "Subjects"
 
-    repeatingsubjectfield(coldescgrpsubjectscontrolaccesselement, cldata, 'addedEntrySubjectLC', 'subject', {'source':'lcsh'})
-    repeatingsubjectfield(coldescgrpsubjectscontrolaccesselement, cldata, 'addedEntrySubjectLocal', 'subject', {'source':'local'})
-    repeatingsubjectfield(coldescgrpsubjectscontrolaccesselement, cldata, 'addedEntrySubjectFAST', 'subject', {'source':'fast'})
+    repeatingSubjectField(coldescgrpsubjectscontrolaccesselement, cldata, 'addedEntrySubjectLC', 'subject', {'source':'lcsh'})
+    repeatingSubjectField(coldescgrpsubjectscontrolaccesselement, cldata, 'addedEntrySubjectLocal', 'subject', {'source':'local'})
+    repeatingSubjectField(coldescgrpsubjectscontrolaccesselement, cldata, 'addedEntrySubjectFAST', 'subject', {'source':'fast'})
 
-    repeatingsubjectfield(coldescgrpsubjectscontrolaccesselement, cldata, 'addedEntryGeographicLC', 'geogname', {'source':'lcsh'})
-    repeatingsubjectfield(coldescgrpsubjectscontrolaccesselement, cldata, 'addedEntryGeographicLocal', 'geogname', {'source':'local'})
+    repeatingSubjectField(coldescgrpsubjectscontrolaccesselement, cldata, 'addedEntryGeographicLC', 'geogname', {'source':'lcsh'})
+    repeatingSubjectField(coldescgrpsubjectscontrolaccesselement, cldata, 'addedEntryGeographicLocal', 'geogname', {'source':'local'})
 
     coldescgrpoccupationscontrolaccesselement = etree.SubElement(coldescgrpcatalogingelement, "controlaccess")
     coldescgrpcontrolaccessoccupationheadelement = etree.SubElement(coldescgrpoccupationscontrolaccesselement, "head")
     if cldata.get("addedEntryOccupationLC", '') != '' or cldata.get("addedEntryOccupationLocal", '') != '':
     	coldescgrpcontrolaccessoccupationheadelement.text = "Occupations"
 
-    repeatingsubjectfield(coldescgrpoccupationscontrolaccesselement, cldata, 'addedEntryOccupationLC', 'occupation', {'source':'lcsh'})
-    repeatingsubjectfield(coldescgrpoccupationscontrolaccesselement, cldata, 'addedEntryOccupationLocal', 'occupation', {'source':'local'})
+    repeatingSubjectField(coldescgrpoccupationscontrolaccesselement, cldata, 'addedEntryOccupationLC', 'occupation', {'source':'lcsh'})
+    repeatingSubjectField(coldescgrpoccupationscontrolaccesselement, cldata, 'addedEntryOccupationLocal', 'occupation', {'source':'local'})
 
     coldescgrpmaterialscontrolaccesselement = etree.SubElement(coldescgrpcatalogingelement, "controlaccess")
     coldescgrpcontrolaccessgenreheadelement = etree.SubElement(coldescgrpmaterialscontrolaccesselement, "head")
     if cldata.get("addedEntryGenreAAT", '') != '' or cldata.get("addedEntryGenreLCSH", '') != '' or cldata.get("addedEntryGenreTGM", '') != '' or cldata.get("addedEntryGenreRBGENR", '') != '' or cldata.get("addedEntryGenreLocal", '') != '':
     	coldescgrpcontrolaccessgenreheadelement.text = "Types of Materials"
 
-    repeatingsubjectfield(coldescgrpmaterialscontrolaccesselement, cldata, 'addedEntryGenreAAT', 'genreform', {'source':'aat'})
-    repeatingsubjectfield(coldescgrpmaterialscontrolaccesselement, cldata, 'addedEntryGenreLCSH', 'genreform', {'source':'lcsh'})
-    repeatingsubjectfield(coldescgrpmaterialscontrolaccesselement, cldata, 'addedEntryGenreTGM', 'genreform', {'source':'tgm'})
-    repeatingsubjectfield(coldescgrpmaterialscontrolaccesselement, cldata, 'addedEntryGenreRBGENR', 'genreform', {'source':'rbgenr'})
-    repeatingsubjectfield(coldescgrpmaterialscontrolaccesselement, cldata, 'addedEntryGenreLocal', 'genreform', {'source':'local'})
+    repeatingSubjectField(coldescgrpmaterialscontrolaccesselement, cldata, 'addedEntryGenreAAT', 'genreform', {'source':'aat'})
+    repeatingSubjectField(coldescgrpmaterialscontrolaccesselement, cldata, 'addedEntryGenreLCSH', 'genreform', {'source':'lcsh'})
+    repeatingSubjectField(coldescgrpmaterialscontrolaccesselement, cldata, 'addedEntryGenreTGM', 'genreform', {'source':'tgm'})
+    repeatingSubjectField(coldescgrpmaterialscontrolaccesselement, cldata, 'addedEntryGenreRBGENR', 'genreform', {'source':'rbgenr'})
+    repeatingSubjectField(coldescgrpmaterialscontrolaccesselement, cldata, 'addedEntryGenreLocal', 'genreform', {'source':'local'})
 
     coldescgrptitlescontrolaccesselement = etree.SubElement(coldescgrpcatalogingelement, "controlaccess")
     coldescgrpcontrolaccesstitleheadelement = etree.SubElement(coldescgrptitlescontrolaccesselement, "head")
     if cldata.get("addedEntryTitle", '') != '':
     	coldescgrpcontrolaccesstitleheadelement.text = "Titles"
 
-    repeatingsubjectfield(coldescgrptitlescontrolaccesselement, cldata, 'addedEntryTitle', 'title', {})
+    repeatingSubjectField(coldescgrptitlescontrolaccesselement, cldata, 'addedEntryTitle', 'title', {})
 
     coldescgrpriamcoscontrolaccesselement = etree.SubElement(coldescgrpcatalogingelement, "controlaccess")
     coldescgrpcontrolaccessriamcoheadelement = etree.SubElement(coldescgrpriamcoscontrolaccesselement, "head")
     if cldata.get("RIAMCOBrowsingTerm", '') != '':
     	coldescgrpcontrolaccessriamcoheadelement.text = "RIAMCO Browsing Term"
 
-    repeatingsubjectfield(coldescgrpriamcoscontrolaccesselement, cldata, 'RIAMCOBrowsingTerm', 'subject', {'altrender':'nodisplay','source':'riamco'})
+    repeatingSubjectField(coldescgrpriamcoscontrolaccesselement, cldata, 'RIAMCOBrowsingTerm', 'subject', {'altrender':'nodisplay','source':'riamco'})
 
     #Create the container list.
     dscelement = etree.SubElement(archdescelement, "dsc", {"type":"combined"})
@@ -616,10 +535,9 @@ def processExceltoEAD(chosenfile, chosensheet, id):
     if onlySeriesRows == True:
         arrangementnoteseriespelement = etree.SubElement(colarrangementelement, "p")
         cserieslist = etree.SubElement(arrangementnoteseriespelement, "list")
-        print("Only series rows is True.", file=sys.stderr)
+        
 
     for row in csvdata:
-        #eadtop = etree.Element("{http://www.loc.gov/mods/v3}mods", {attr_qname: "http://www.loc.gov/mods/v3 http://www.loc.gov/mods/v3/mods-3-7.xsd"}, nsmap=ns_map)
 
         if row.get('Ignore', '') != '':
             continue
@@ -636,15 +554,12 @@ def processExceltoEAD(chosenfile, chosensheet, id):
             cdid = didelement
 
             titleelement = etree.SubElement(cdid, "unittitle")
-            titleelement.text = ' '.join(row.get("recordgroupTitle", '').split())
+            titleelement.text = xmltext(row.get("recordgroupTitle", ''))
             cunittitle = titleelement
 
             seriesIDelement = etree.SubElement(cdid, "unitid", {"type":"recordgrp"})
-            cseriesID = "Record Group " + ' '.join(str(row.get("recordgroupID", '')).split()).replace('.0','')
+            cseriesID = "Record Group " + xmltext(str(row.get("recordgroupID", ''))).replace('.0','')
             seriesIDelement.text = cseriesID
-
-            #MODS: subtitle = etree.SubElement(titleinfo, "subTitle")
-            #MODS: subtitle.text = ' '.join(row.get("subTitle", '').split())
 
             #Add the series to the Arrangement Note.
             arrangementnotepaddition = etree.SubElement(colarrangementelement, "p")
@@ -666,15 +581,12 @@ def processExceltoEAD(chosenfile, chosensheet, id):
             cdid = didelement
 
             titleelement = etree.SubElement(cdid, "unittitle")
-            titleelement.text = ' '.join(row.get("subgroupTitle", '').split())
+            titleelement.text = xmltext(row.get("subgroupTitle", ''))
             cunittitle = titleelement
 
             seriesIDelement = etree.SubElement(cdid, "unitid", {"type":"subgrp"})
-            cseriesID = "Subgroup " + ' '.join(str(row.get("subgroupID", '')).split()).replace('.0','')
+            cseriesID = "Subgroup " + xmltext(str(row.get("subgroupID", ''))).replace('.0','')
             seriesIDelement.text = cseriesID
-
-            #MODS: subtitle = etree.SubElement(titleinfo, "subTitle")
-            #MODS: subtitle.text = ' '.join(row.get("subTitle", '').split())
 
             #Add the series to the Arrangement Note.
             arrangementnotepaddition = etree.SubElement(colarrangementelement, "p")
@@ -695,20 +607,12 @@ def processExceltoEAD(chosenfile, chosensheet, id):
             cdid = didelement
 
             titleelement = etree.SubElement(cdid, "unittitle")
-            titleelement.text = ' '.join(row.get("seriesTitle", '').split())
+            titleelement.text = xmltext(row.get("seriesTitle", ''))
             cunittitle = titleelement
 
             seriesIDelement = etree.SubElement(cdid, "unitid", {"type":"series"})
-            cseriesID = "Series " + ' '.join(str(row.get("seriesID", '')).split()).replace('.0','')
+            cseriesID = "Series " + xmltext(str(row.get("seriesID", ''))).replace('.0','')
             seriesIDelement.text = cseriesID
-
-            #MODS: subtitle = etree.SubElement(titleinfo, "subTitle")
-            #MODS: subtitle.text = ' '.join(row.get("subTitle", '').split())
-
-            #Add the series to the Arrangement Note.
-            #arrangementnotepaddition = etree.SubElement(colarrangementelement, "p")
-            #arrangementnotepaddition.text = cseriesID + ". " + titleelement.text
-            #csubserieslist = etree.SubElement(colarrangementelement, "list")
 
             seriesarrangementelement = etree.SubElement(cserieslist, "item")
             seriesarrangementelement.text = cseriesID + ". " + titleelement.text
@@ -726,20 +630,14 @@ def processExceltoEAD(chosenfile, chosensheet, id):
             cdid = didelement
 
             titleelement = etree.SubElement(cdid, "unittitle")
-            titleelement.text = ' '.join(row.get("subSeriesTitle", '').split())
+            titleelement.text = xmltext(row.get("subSeriesTitle", ''))
             cunittitle = titleelement
 
             subseriesIDelement = etree.SubElement(cdid, "unitid", {"type":"subseries"})
-            subseriesIDelement.text = cseriesID + ". Subseries " + ' '.join(str(row.get("subSeriesID", '')).split()).replace('.0','')
-
-            #MODS: subtitle = etree.SubElement(titleinfo, "subTitle")
-            #MODS: subtitle.text = ' '.join(row.get("subTitle", '').split())
-
-            #arrangementnotepaddition = etree.SubElement(csubserieslist, "item")
-            #arrangementnotepaddition.text =  "Subseries " + ' '.join(str(row.get("subSeriesID", '')).split()).replace('.0','') + ". " + titleelement.text
+            subseriesIDelement.text = cseriesID + ". Subseries " + xmltext(str(row.get("subSeriesID", ''))).replace('.0','')
 
             subseriesarrangementelement = etree.SubElement(csubserieslist, "item")
-            subseriesarrangementelement.text = "Subseries " + ' '.join(str(row.get("subSeriesID", '')).split()).replace('.0','') + ". " + titleelement.text
+            subseriesarrangementelement.text = "Subseries " + xmltext(str(row.get("subSeriesID", ''))).replace('.0','') + ". " + titleelement.text
         #Create a top level file element if the title cell is not blank.
         elif row.get("fileTitle", '') != "":
             fileement = etree.SubElement(csubserieselement, "c", {"id":("c"+str(rowindex)), "level":"file"})
@@ -750,17 +648,8 @@ def processExceltoEAD(chosenfile, chosensheet, id):
             cdid = didelement
 
             titleelement = etree.SubElement(cdid, "unittitle")
-            titleelement.text = ' '.join(row.get("fileTitle", '').split())
+            titleelement.text = xmltext(row.get("fileTitle", ''))
             cunittitle = titleelement
-
-            #subseriesIDelement = etree.SubElement(cdid, "unitid", {"type":"subseries"})
-            #subseriesIDelement.text = cseriesID + ". Subseries " + ' '.join(str(row.get("subSeriesID", '')).split()).replace('.0','')
-
-            #MODS: subtitle = etree.SubElement(titleinfo, "subTitle")
-            #MODS: subtitle.text = ' '.join(row.get("subTitle", '').split())
-
-            #arrangementnotepaddition = etree.SubElement(csubserieslist, "item")
-            #arrangementnotepaddition.text =  "Subseries " + ' '.join(str(row.get("subSeriesID", '')).split()).replace('.0','') + ". " + titleelement.text
 
         #Create a top level item element if the title cell is not blank.
         elif row.get("itemTitle", '') != "":
@@ -771,48 +660,41 @@ def processExceltoEAD(chosenfile, chosensheet, id):
             cdid = didelement
 
             titleelement = etree.SubElement(cdid, "unittitle")
-            titleelement.text = ' '.join(row.get("itemTitle", '').split())
+            titleelement.text = xmltext(row.get("itemTitle", ''))
             cunittitle = titleelement
-            #Needs attention: Item ID.
-            #itemIDelement = etree.SubElement(didelement, "unitid", {"type":"subseries"})
-            #itemIDelement.text = cseriesID + ". Subseries " + ' '.join(str(row.get("subSeriesID", '')).split()).replace('.0','')
 
         #container
         shelfLocatorstring = ""
         barcodestring = ''
 
-        #if row.get("barcode", '') != '':
-        #    floatbarcode = float(row.get("barcode", ''))
-
         if row.get("barcode", '') != '':
             barcodestring = ' [' + xmltext(row.get("barcode", '')).rstrip('.0') + ']'
 
         if row.get("shelfLocator1", '') != "":
-            # , "label": ' '.join(row.get("shelfLocator1", '').split()) , "label": xmltext(shelfLocator1)
-            shelflocator1attributes = {"type":' '.join(row.get("shelfLocator1", '').split()).lower().replace(' ', '_'), "label": xmltext(row.get("shelfLocator1", '').title()) + barcodestring}
+            shelflocator1attributes = {"type":xmltext(row.get("shelfLocator1", '')).lower().replace(' ', '_'), "label": xmltext(row.get("shelfLocator1", '').title()) + barcodestring}
             shelflocator1element = etree.SubElement(cdid, "container", shelflocator1attributes)
-            shelflocator1element.text = ' '.join(str(row.get("shelfLocator1ID", '')).split()).replace('.0','')
+            shelflocator1element.text = xmltext(str(row.get("shelfLocator1ID", ''))).replace('.0','')
         if row.get("shelfLocator2", '') != "":
-            shelflocator2attributes = {"type":' '.join(row.get("shelfLocator2", '').split()).lower().replace(' ', '_'), "label": xmltext(row.get("shelfLocator2", '').title())}
+            shelflocator2attributes = {"type":xmltext(row.get("shelfLocator2", '')).lower().replace(' ', '_'), "label": xmltext(row.get("shelfLocator2", '').title())}
             shelflocator2element = etree.SubElement(cdid, "container", shelflocator2attributes)
-            shelflocator2element.text = ' '.join(str(row.get("shelfLocator2ID", '')).split()).replace('.0','')
+            shelflocator2element.text = xmltext(str(row.get("shelfLocator2ID", ''))).replace('.0','')
         if row.get("shelfLocator3", '') != "":
-            shelflocator3attributes = {"type":' '.join(row.get("shelfLocator3", '').split()).lower().replace(' ', '_'), "label": xmltext(row.get("shelfLocator3", '').title())}
+            shelflocator3attributes = {"type":xmltext(row.get("shelfLocator3", '')).lower().replace(' ', '_'), "label": xmltext(row.get("shelfLocator3", '').title())}
             shelflocator3element = etree.SubElement(cdid, "container", shelflocator3attributes)
-            shelflocator3element.text = ' '.join(str(row.get("shelfLocator3ID", '')).split()).replace('.0','')
+            shelflocator3element.text = xmltext(str(row.get("shelfLocator3ID", ''))).replace('.0','')
 
         #dates
         #Test for a YYYY - YYYY and remove dates if so.
         match = re.search(u"(\d{4}\s-\s\d{4})", row.get("dateText", ''))
 
-        inclusivedatetext= xmltext(row.get("dateText", '')).replace('.0','') #' '.join(row.get("dateText", '').split()).replace('.0','')
+        inclusivedatetext= xmltext(row.get("dateText", '')).replace('.0','') 
         if match:
             inclusivedatetext = inclusivedatetext.replace(' ','')
-        inclusivedatestart = xmltext(row.get("dateStart", '')).replace('.0','') #' '.join(row.get("dateStart", '').split()).replace('.0','')
-        inclusivedateend = xmltext(row.get("dateEnd", '')).replace('.0','') #' '.join(row.get("dateEnd", '').split()).replace('.0','')
+        inclusivedatestart = xmltext(row.get("dateStart", '')).replace('.0','') 
+        inclusivedateend = xmltext(row.get("dateEnd", '')).replace('.0','') 
 
-        bulkdatestart = xmltext(row.get("dateBulkStart", '')).replace('.0','') # ' '.join(row.get("dateBulkStart", '').split()).replace('.0','')
-        bulkdateend = xmltext(row.get("dateBulkEnd", '')).replace('.0','') #' '.join(row.get("dateBulkEnd", '').split()).replace('.0','')
+        bulkdatestart = xmltext(row.get("dateBulkStart", '')).replace('.0','') 
+        bulkdateend = xmltext(row.get("dateBulkEnd", '')).replace('.0','') 
 
         unitdateinclusiveattributes = {"type":"inclusive"}
         if inclusivedatestart != '' and inclusivedateend != '':
@@ -840,26 +722,26 @@ def processExceltoEAD(chosenfile, chosensheet, id):
         #extent and genre
         extentquantityphysdescelement = etree.SubElement(cdid, "physdesc", {"altrender":"whole"})
         extentQuantityelement = etree.SubElement(extentquantityphysdescelement, "extent", {"altrender":"materialtype spaceoccupied"})
-        extentQuantityelement.text = ' '.join(row.get("extentQuantity", '').split())
+        extentQuantityelement.text = xmltext(row.get("extentQuantity", ''))
         containerSummaryelement = etree.SubElement(extentquantityphysdescelement, "extent",{"altrender":"carrier"})
         containerSummaryelement.text = xmltext(row.get("containerSummary",''))
 
         extentsizephysdescelement = etree.SubElement(cdid, "physdesc")
         extentSizeelement = etree.SubElement(extentsizephysdescelement, "dimensions")
-        extentSizeelement.text = ' '.join(row.get("extentSize", '').split())
+        extentSizeelement.text = xmltext(row.get("extentSize", ''))
 
         extentSpeedelement = etree.SubElement(extentsizephysdescelement, "dimensions")
-        extentSpeedelement.text = ' '.join(row.get("extentSpeed", '').split())
+        extentSpeedelement.text = xmltext(row.get("extentSpeed", ''))
 
         genreformphyscdescelement = etree.SubElement(cdid, "physdesc")
-        repeatingsubjectfield(genreformphyscdescelement, row, 'genreAAT', 'genreform',{"source":"aat"})
-        repeatingsubjectfield(genreformphyscdescelement, row, 'genreLCSH', 'genreform',{"source":"lcsh"})
-        repeatingsubjectfield(genreformphyscdescelement, row, 'genreLocal', 'genreform',{"source":"local"})
-        repeatingsubjectfield(genreformphyscdescelement, row, 'genreRBGENR', 'genreform',{"source":"rbgenr"})
+        repeatingSubjectField(genreformphyscdescelement, row, 'genreAAT', 'genreform',{"source":"aat"})
+        repeatingSubjectField(genreformphyscdescelement, row, 'genreLCSH', 'genreform',{"source":"lcsh"})
+        repeatingSubjectField(genreformphyscdescelement, row, 'genreLocal', 'genreform',{"source":"local"})
+        repeatingSubjectField(genreformphyscdescelement, row, 'genreRBGENR', 'genreform',{"source":"rbgenr"})
 
         #materialspec
         formelement = etree.SubElement(cdid, "materialspec")
-        formelement.text = ' '.join(row.get("form", '').split())
+        formelement.text = xmltext(row.get("form", ''))
 
         #language
         langmaterialelement = etree.SubElement(cdid, "langmaterial")
@@ -875,46 +757,32 @@ def processExceltoEAD(chosenfile, chosensheet, id):
                 langusagelangelement.text =  xmltext(language)
 
                 if scriptcode == "N/A":
-                    langissue = True
+                    print("Language issue")
             else:
                 langusagelangelement = etree.SubElement(langmaterialelement, "language", {"langcode":"***", "scriptcode":"***"})
                 langusagelangelement.text =  xmltext(language)
 
-                langissue = True
-
         #Create origination and controlaccess element.
 
         originationelement = etree.SubElement(cdid, "origination")
-
-        #typeOfResource
-        #Needs attention: Instance Type/typeOfResource.
-        #typeofresource = etree.SubElement(eadtop, "{http://www.loc.gov/mods/v3}typeOfResource")
-        #typeofresource.text = ' '.join(row.get("typeOfResource", '').split())
 
         #note
         notescopeelement = etree.SubElement(ctelement, "scopecontent")
         scopelines = row.get("noteScope", '').splitlines()
         for line in scopelines:
             pelement = etree.SubElement(notescopeelement, "p")
-            pelement.text = ' '.join(line.split())
+            pelement.text = xmltext(line)
 
         notebioghistelement = etree.SubElement(ctelement, "bioghist")
         bioghistlines = row.get("noteHistorical", '').splitlines()
         for line in bioghistlines:
             pelement = etree.SubElement(notebioghistelement, "p")
-            pelement.text = ' '.join(line.split())
+            pelement.text = xmltext(line)
 
         acqinfoelement = etree.SubElement(ctelement, "acqinfo")
         noteaccessionpelement = etree.SubElement(acqinfoelement, "p")
         noteaccessionelement = etree.SubElement(noteaccessionpelement, "num", {"type":"accession"})
-        noteaccessionelement.text = ' '.join(row.get("noteAccession", '').split())
-
-        #useAndReproduction
-        #useAndReproductionelement = etree.SubElement(ctelement, "userestrict")
-        #useAndReproductionelementlines = row.get("useAndReproduction", '').splitlines()
-        #for line in useAndReproductionelementlines:
-        #    pelement = etree.SubElement(useAndReproductionelement, "p")
-        #    pelement.text = ' '.join(line.split())
+        noteaccessionelement.text = xmltext(row.get("noteAccession", ''))
 
         #controlaccess and name fields
         ccontrolaccess = etree.SubElement(ctelement, "controlaccess")
@@ -935,99 +803,39 @@ def processExceltoEAD(chosenfile, chosensheet, id):
         scopelines = row.get("noteGeneral", '').splitlines()
         for line in scopelines:
             pelement = etree.SubElement(notegeneralelement, "p")
-            pelement.text = ' '.join(line.split())
+            pelement.text = xmltext(line)
 
         notealtformelement = etree.SubElement(ctelement, "altformavail")
         altformlines = row.get("locationCopies", '').splitlines()
         for line in altformlines:
             pelement = etree.SubElement(notealtformelement, "p")
-            pelement.text = ' '.join(line.split())
-
-        #noteAccessionelement = etree.SubElement(eadtop, "{http://www.loc.gov/mods/v3}note", {"type":"acquisition", "displayLabel":"Immediate form of acquisition"})
-        #noteAccessionelement.text = ' '.join(row.get("noteAccession", '').split())
-
-        #noteHistoricalClassYearelement = etree.SubElement(eadtop, "{http://www.loc.gov/mods/v3}note", {"type":"biographical/historical", "displayLabel":"Class year"})
-        #noteHistoricalClassYearelement.text = ' '.join(row.get("noteHistoricalClassYear", '').split())
-
-        #notePreferredCitation = etree.SubElement(eadtop, "{http://www.loc.gov/mods/v3}note", {"type":"preferredCitation"})
-        #notePreferredCitationstring = ' '.join(row.get("title", '').split()).rstrip('.')
-        #if row.get("collection", '') != "":
-        #    notePreferredCitationstring = notePreferredCitationstring + ", " + ' '.join(row.get("collection", '').split())
-        #if row.get("callNumber", '') != "":
-        #    notePreferredCitationstring = notePreferredCitationstring + ", " + ' '.join(row.get("callNumber", '').split())
-        #notePreferredCitation.text = notePreferredCitationstring + ', Brown University Library'
-
-        #originInfo
-
-        #MODS: publisherelement = etree.SubElement(originInfoelement, "{http://www.loc.gov/mods/v3}publisher")
-        #MODS: publisherelement.text = ' '.join(row.get("publisher", '').split())
-
-        #dateQualifierAttribute = {}
-
-        #if row.get("dateQualifier", '') != "":
-        #    dateQualifierAttribute = {"qualifier": row.get("dateQualifier", '')}
-
+            pelement.text = xmltext(line)
 
         #geogname
         geognameelement = etree.SubElement(cunittitle, "geogname")
-        geognameelement.text = ' '.join(row.get("place", '').split())
-
-        #rightsStatementelement = etree.SubElement(eadtop, "{http://www.loc.gov/mods/v3}accessCondition", {"type":"rightsStatement","{http://www.w3.org/1999/xlink}href":row.get("rightsStatementURI", '')})
-        #rightsStatementelement.text = ' '.join(row.get("rightsStatementText", '').split())
-
-        #restrictionOnAccesselement = etree.SubElement(eadtop, "{http://www.loc.gov/mods/v3}accessCondition", {"type":"restrictionOnAccess"})
-        #restrictionOnAccesselement.text = "Collection is open for research."
+        geognameelement.text = xmltext(row.get("place", ''))
 
         #subject
-        repeatingsubjectfield(ccontrolaccess, row, 'subjectNamesLC', 'persname',{"source":"naf"})
-        repeatingsubjectfield(ccontrolaccess, row, 'subjectNamesLocal', 'persname',{"source":"local"})
-        repeatingsubjectfield(ccontrolaccess, row, 'subjectNamesFAST', 'persname',{"source":"fast"})
+        repeatingSubjectField(ccontrolaccess, row, 'subjectNamesLC', 'persname',{"source":"naf"})
+        repeatingSubjectField(ccontrolaccess, row, 'subjectNamesLocal', 'persname',{"source":"local"})
+        repeatingSubjectField(ccontrolaccess, row, 'subjectNamesFAST', 'persname',{"source":"fast"})
 
-        repeatingsubjectfield(ccontrolaccess, row, 'subjectCorpLC', 'corpname',{"source":"naf"})
-        repeatingsubjectfield(ccontrolaccess, row, 'subjectCorpLocal', 'corpname',{"source":"local"})
-        repeatingsubjectfield(ccontrolaccess, row, 'subjectCorpFAST', 'corpname',{"source":"fast"})
+        repeatingSubjectField(ccontrolaccess, row, 'subjectCorpLC', 'corpname',{"source":"naf"})
+        repeatingSubjectField(ccontrolaccess, row, 'subjectCorpLocal', 'corpname',{"source":"local"})
+        repeatingSubjectField(ccontrolaccess, row, 'subjectCorpFAST', 'corpname',{"source":"fast"})
 
-        repeatingsubjectfield(ccontrolaccess, row, 'subjectTopicsLC', 'subject',{"source":"lcsh"})
-        repeatingsubjectfield(ccontrolaccess, row, 'subjectTopicsLocal', 'subject',{"source":"local"})
-        repeatingsubjectfield(ccontrolaccess, row, 'subjectTopicsFAST', 'subject',{"source":"fast"})
+        repeatingSubjectField(ccontrolaccess, row, 'subjectTopicsLC', 'subject',{"source":"lcsh"})
+        repeatingSubjectField(ccontrolaccess, row, 'subjectTopicsLocal', 'subject',{"source":"local"})
+        repeatingSubjectField(ccontrolaccess, row, 'subjectTopicsFAST', 'subject',{"source":"fast"})
 
-        repeatingsubjectfield(ccontrolaccess, row, 'subjectGeoLC', 'geogname',{"source":"lcsh"})
-        repeatingsubjectfield(ccontrolaccess, row, 'subjectGeoFAST', 'geogname',{"source":"fast"})
+        repeatingSubjectField(ccontrolaccess, row, 'subjectGeoLC', 'geogname',{"source":"lcsh"})
+        repeatingSubjectField(ccontrolaccess, row, 'subjectGeoFAST', 'geogname',{"source":"fast"})
 
-        repeatingsubjectfield(ccontrolaccess, row, 'subjectTemporalLC', 'subject',{"source":"lcsh"})
-        repeatingsubjectfield(ccontrolaccess, row, 'subjectTemporalFAST', 'subject',{"source":"fast"})
+        repeatingSubjectField(ccontrolaccess, row, 'subjectTemporalLC', 'subject',{"source":"lcsh"})
+        repeatingSubjectField(ccontrolaccess, row, 'subjectTemporalFAST', 'subject',{"source":"fast"})
 
-        repeatingsubjectfield(ccontrolaccess, row, 'subjectTitleLC', 'title',{"source":"lcsh"})
-        repeatingsubjectfield(ccontrolaccess, row, 'subjectTitleFAST', 'title',{"source":"fast"})
-
-        #for index, temporal in enumerate(row.get("subjectTemporalLC", '').split('|')):
-        #    subjectelement = etree.SubElement(eadtop, "{http://www.loc.gov/mods/v3}subject", {"authority":"local"})
-        #    if temporal == "":
-        #        continue
-        #    temporalelement = etree.SubElement(subjectelement, "{http://www.loc.gov/mods/v3}temporal")
-        #    temporalelement.text = ' '.join(temporal.split())
-
-        ###
-
-        #hostlocationelement = etree.SubElement(relatedItemelement, "{http://www.loc.gov/mods/v3}location")
-
-        #hostphysicalLocationelement = etree.SubElement(hostlocationelement, "{http://www.loc.gov/mods/v3}physicalLocation")
-        #hostphysicalLocationelement.text = ' '.join(row.get("repository", '').split())
-
-        #hosturlelement = etree.SubElement(hostlocationelement, "{http://www.loc.gov/mods/v3}url")
-        #hosturlelement.text = ' '.join(row.get("findingAid", '').split())
-
-        #hostholdingSimpleelement = etree.SubElement(hostlocationelement, "{http://www.loc.gov/mods/v3}holdingSimple")
-        #hostcopyInformationelement = etree.SubElement(hostholdingSimpleelement, "{http://www.loc.gov/mods/v3}copyInformation")
-        #hostshelfLocatorelement = etree.SubElement(hostcopyInformationelement, "{http://www.loc.gov/mods/v3}shelfLocator")
-
-
-      #  if row.get("shelfLocator2", '') != "":
-     #       shelfLocatorstring = shelfLocatorstring + ', ' + ' '.join(row.get("shelfLocator2", '').split()) + ' ' + ' '.join(str(row.get("shelfLocator2ID", '')).split()).replace('.0','')
-      #  if row.get("shelfLocator3", '') != "":
-      #      shelfLocatorstring = shelfLocatorstring + ', ' + ' '.join(row.get("shelfLocator3", '').split()) + ' ' + ' '.join(str(row.get("shelfLocator3ID", '')).split()).replace('.0','')
-
-     #   hostshelfLocatorelement.text = ' '.join(shelfLocatorstring.split())
+        repeatingSubjectField(ccontrolaccess, row, 'subjectTitleLC', 'title',{"source":"lcsh"})
+        repeatingSubjectField(ccontrolaccess, row, 'subjectTitleFAST', 'title',{"source":"fast"})
 
         #dao fields
         if row.get("identifierBDR", '') != "":
@@ -1036,7 +844,7 @@ def processExceltoEAD(chosenfile, chosensheet, id):
             daomodspelement = etree.SubElement(daomodsdescelement, "p")
             daomodspelement.text = cunittitle.text
 
-            daobdrelement = etree.SubElement(ctelement, "dao", {"{http://www.w3.org/1999/xlink}actuate":"onRequest","{http://www.w3.org/1999/xlink}show":"embed","{http://www.w3.org/1999/xlink}title": cunittitle.text, "{http://www.w3.org/1999/xlink}role":"BDR_PID","{http://www.w3.org/1999/xlink}href":'bdr:'+ ' '.join(row.get("identifierBDR", '').split()).lstrip('bdr').replace(':','')})
+            daobdrelement = etree.SubElement(ctelement, "dao", {"{http://www.w3.org/1999/xlink}actuate":"onRequest","{http://www.w3.org/1999/xlink}show":"embed","{http://www.w3.org/1999/xlink}title": cunittitle.text, "{http://www.w3.org/1999/xlink}role":"BDR_PID","{http://www.w3.org/1999/xlink}href":'bdr:'+ xmltext(row.get("identifierBDR", '')).lstrip('bdr').replace(':','')})
             daobdrdescelement = etree.SubElement(daobdrelement, "daodesc")
             daobdrpelement = etree.SubElement(daobdrdescelement, "p")
             daobdrpelement.text = cunittitle.text
@@ -1052,11 +860,6 @@ def processExceltoEAD(chosenfile, chosensheet, id):
             daomodsdescelement = etree.SubElement(daomodselement, "daodesc")
             daomodspelement = etree.SubElement(daomodsdescelement, "p")
             daomodspelement.text = cunittitle.text
-
-
-        #MODS: lastnote
-        #digitalObjectMadeelement = etree.SubElement(eadtop, "{http://www.loc.gov/mods/v3}note", {"displayLabel":"Digital object made available by"})
-        #digitalObjectMadeelement.text = "Brown University Library, John Hay Library, University Archives and Manuscripts, Box A, Brown University, Providence, RI, 02912, U.S.A., (http://library.brown.edu/)"
 
         rowindex = rowindex + 1
 
@@ -1116,17 +919,13 @@ def processExceltoEAD(chosenfile, chosensheet, id):
         langusagelangelement.text = xmltext(cldata.get("findingAidLanguage", ''))
 
         if scriptcode == "N/A":
-            langissue = True
+            print("Language issue")
     else:
         langusagelangelement = etree.SubElement(langusageelement, "language", {"langcode":"***", "scriptcode":"***"})
         langusagelangelement.text = xmltext(cldata.get("findingAidLanguage", ''))
 
-        langissue = True
-
     descruleselement = etree.SubElement(profiledescelement, "descrules")
     descruleselement.text = "Finding aid based on Describing Archives: A Content Standard (DACS)"
-
-
 
     # start cleanup
     # remove any element tails
@@ -1166,28 +965,17 @@ def processExceltoEAD(chosenfile, chosensheet, id):
     for element in clean.xpath(".//*[@*='null']"):
         element.getparent().remove(element)
 
-    # finished cleanup
-    # write out to intermediate file
-    #with open(os.getcwd() + '/cache/clean.xml', 'wb') as f:
-    #    f.write(etree.tostring(clean))
-    #print "XML is now clean"
-
     completestring = etree.tostring(clean, pretty_print = True, encoding="unicode")
     completestring = completestring.replace('&lt;','<')
     completestring = completestring.replace('&gt;','>')
 
-    print("AT THE END", file=sys.stderr)
+    
 
     with open(CACHEDIR + id + "/" + cldata.get("callNumber", '') + ".xml", 'w+') as f:
         f.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-        #completestring = etree.tostring(clean, pretty_print = True)
-        #completestring = completestring.replace('&lt;','<')
-        #completestring = completestring.replace('&gt;','>')
         f.write(completestring)
-        print("Returning file", file=sys.stderr)
-        print("Wrote file " + cldata.get("callNumber", '') + ".xml\n", file=sys.stderr)
         f.close()
-        print('\n\n', file=sys.stderr)
+        
 
     returndict = {}
 
@@ -1196,20 +984,4 @@ def processExceltoEAD(chosenfile, chosensheet, id):
 
     with open(CACHEDIR + id + "/" + cldata.get("callNumber", '') + ".xml", 'rb') as f:
         return(f.read(), returndict)
-
-    if langissue == True:
-        #print("")
-        print("*Language Field Error*\n", file=sys.stderr)
-        print("There were one or more issues with language fields in your spreadsheet. Please check your spelling in all language fields. You may also manually correct your XML file, consult the SupportedLanguages.xlsx file in the data folder for supported languages, and/or adjust the SupportedLanguages.xlsx spreadsheet to suit your project.\n", file=sys.stderr)
-
-        print('\n\n', file=sys.stderr)
-
-    #errorfile.close()
-    print("***Operation Complete***\n", file=sys.stderr)
-    #rint("Your EAD file was written to folder " + output_path + ".\n", file=sys.stderr)
-
-    print('\n\n', file=sys.stderr)
-
-    print( u"   \u2606 \u2606 \u2606", file=sys.stderr)
-    print('\n\n\n', file=sys.stderr)
 
