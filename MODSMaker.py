@@ -296,10 +296,10 @@ def XLSDictReaderScriptCode(file, sheetname):
         return(scriptcode)
 
 
-#CACHEDIR = "/home/codyross/eadmaker/cache/"
-CACHEDIR = os.getcwd() + "/cache"
-#HOMEDIR = "/home/codyross/eadmaker/"
-HOMEDIR = os.getcwd() + "/"
+CACHEDIR = "/home/codyross/eadmaker/cache/"
+HOMEDIR = "/home/codyross/eadmaker/"
+#CACHEDIR = os.getcwd() + "/cache"
+#HOMEDIR = os.getcwd() + "/"
 
 def processExceltoMODS(chosenfile, chosensheet, id):
     #try:

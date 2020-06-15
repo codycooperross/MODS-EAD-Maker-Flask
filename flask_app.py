@@ -11,10 +11,10 @@ import os
 app = Flask(__name__)
 app.config["DEBUG"] = True
 
-#CACHEDIR = "/home/codyross/eadmaker/cache/"
-CACHEDIR = os.getcwd() + "/cache"
-#HOMEDIR = "/home/codyross/eadmaker/"
-HOMEDIR = os.getcwd() + "/"
+CACHEDIR = "/home/codyross/eadmaker/cache/"
+HOMEDIR = "/home/codyross/eadmaker/"
+#CACHEDIR = os.getcwd() + "/cache"
+#HOMEDIR = os.getcwd() + "/"
 
 @app.route("/", methods=["GET", "POST"])
 def redirectToEADMaker():
