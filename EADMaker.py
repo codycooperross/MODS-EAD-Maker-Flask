@@ -248,8 +248,11 @@ def getSheetNames(chosenfile):
 
 #CACHEDIR = "/home/codyross/eadmaker/cache/"
 #HOMEDIR = "/home/codyross/eadmaker/"
-CACHEDIR = os.getcwd() + "/cache/"
-HOMEDIR = os.getcwd() + "/"
+#CACHEDIR = os.getcwd() + "/cache/"
+#HOMEDIR = os.getcwd() + "/"
+
+CACHEDIR = os.path.join(os.path.dirname(__file__), 'cache/')
+HOMEDIR = os.path.dirname(__file__) + '/'
 
 def processExceltoEAD(chosenfile, chosensheet, id):
 
